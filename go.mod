@@ -21,7 +21,8 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/vmware-tanzu/astrolabe v0.0.0-20200309232518-c68d86d1c17c
 	github.com/vmware-tanzu/velero v1.3.0
-	github.com/vmware/govmomi v0.22.2 // indirect
+	github.com/vmware/govmomi v0.22.2
+	golang.org/x/tools v0.0.0-20200131211209-ecb101ed6550
 	k8s.io/api v0.17.3
 	k8s.io/apiextensions-apiserver v0.17.3
 	k8s.io/apimachinery v0.17.3

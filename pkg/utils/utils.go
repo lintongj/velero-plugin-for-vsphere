@@ -39,12 +39,7 @@ import (
  * In the CSI setup, VC credential is stored as a secret
  * under the kube-system namespace.
  */
-func RetrieveVcConfigSecret(params map[string]interface{}, logger logrus.FieldLogger) error {
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		logger.WithError(err).Errorf("Failed to get k8s inClusterConfig")
-		return err
-	}
+func RetrieveVcConfigSecretFromConfig(config *rest.Config, params map[string]interface{}, logger logrus.FieldLogger) error {
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		logger.WithError(err).Errorf("Failed to get k8s clientset from the given config: %v", config)
@@ -72,6 +67,21 @@ func RetrieveVcConfigSecret(params map[string]interface{}, logger logrus.FieldLo
 			value := strings.TrimSpace(parts[1])
 			params[key] = value[1 : len(value)-1]
 		}
+	}
+
+	return nil
+}
+
+func RetrieveVcConfigSecret(params map[string]interface{}, logger logrus.FieldLogger) error {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		logger.WithError(err).Errorf("Failed to get k8s inClusterConfig")
+		return err
+	}
+
+	err = RetrieveVcConfigSecretFromConfig(config, params, logger)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -138,27 +148,27 @@ func RetrieveVSLFromVeleroBSLs(params map[string]interface{}, logger logrus.Fiel
 	return nil
 }
 
-func GetIVDPETMFromParamsMap(params map[string]interface{}, logger logrus.FieldLogger) (*ivd.IVDProtectedEntityTypeManager, error) {
+func GetVcConfigFromParams(params map[string]interface{}) (*url.URL, bool, error) {
 	var vcUrl url.URL
 	vcUrl.Scheme = "https"
 	vcHostStr, ok := params["VirtualCenter"].(string)
 	if !ok {
-		return nil, errors.New("Missing vcHost param, cannot initialize IVD PETM")
+		return nil, false, errors.New("Missing vcHost param")
 	}
 	vcHostPortStr, ok := params["port"].(string)
 	if !ok {
-		return nil, errors.New("Missing port param, cannot initialize IVD PETM")
+		return nil, false, errors.New("Missing port param")
 	}
 
 	vcUrl.Host = fmt.Sprintf("%s:%s", vcHostStr, vcHostPortStr)
 
 	vcUser, ok := params["user"].(string)
 	if !ok {
-		return nil, errors.New("Missing vcUser param, cannot initialize IVD PETM")
+		return nil, false, errors.New("Missing vcUser param")
 	}
 	vcPassword, ok := params["password"].(string)
 	if !ok {
-		return nil, errors.New("Missing vcPassword param, cannot initialize IVD PETM")
+		return nil, false, errors.New("Missing vcPassword param")
 	}
 	vcUrl.User = url.UserPassword(vcUser, vcPassword)
 	vcUrl.Path = "/sdk"
@@ -169,9 +179,19 @@ func GetIVDPETMFromParamsMap(params map[string]interface{}, logger logrus.FieldL
 		insecure = true
 	}
 
+	return &vcUrl, insecure, nil
+}
+
+func GetIVDPETMFromParamsMap(params map[string]interface{}, logger logrus.FieldLogger) (*ivd.IVDProtectedEntityTypeManager, error) {
+	vcUrl, insecure, err := GetVcConfigFromParams(params)
+	if err != nil {
+		logger.Errorf("Error at getting VC config from the input params: %+v", err)
+		return nil, err
+	}
+
 	s3URLBase := "VOID_URL"
 
-	ivdPETM, err := ivd.NewIVDProtectedEntityTypeManagerFromURL(&vcUrl, s3URLBase, insecure, logger)
+	ivdPETM, err := ivd.NewIVDProtectedEntityTypeManagerFromURL(vcUrl, s3URLBase, insecure, logger)
 	if err != nil {
 		logger.WithError(err).Errorf("Error at creating new IVD PETM from vcUrl: %v, s3URLBase: %s",
 			vcUrl, s3URLBase)
