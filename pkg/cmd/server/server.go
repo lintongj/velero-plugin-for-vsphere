@@ -171,6 +171,7 @@ func (s *server) run() error {
 }
 
 func newServer(f client.Factory, config serverConfig, logger *logrus.Logger) (*server, error) {
+	logger.Infof("test for webhook again")
 	logger.Infof("data manager server is started")
 	kubeClient, err := f.KubeClient()
 	if err != nil {
