@@ -26,6 +26,7 @@ func main() {
 	veleroplugin.NewServer().
 		RegisterVolumeSnapshotter("velero.io/vsphere", newVolumeSnapshotterPlugin).
 		RegisterBackupItemAction("velero.io/vsphere-pvc-backupper", newPVCBackupItemAction).
+		RegisterBackupItemAction("velero.io/vsphere-pvc-restorer", newPVCRestoreItemAction).
 		Serve()
 }
 
@@ -35,4 +36,8 @@ func newVolumeSnapshotterPlugin(logger logrus.FieldLogger) (interface{}, error) 
 
 func newPVCBackupItemAction(logger logrus.FieldLogger) (interface{}, error) {
 	return &plugins_pkg.NewPVCBackupItemAction{Log: logger}, nil
+}
+
+func newPVCRestoreItemAction(logger logrus.FieldLogger) (interface{}, error) {
+	return &plugins_pkg.NewPVCRestoreItemAction{Log: logger}, nil
 }

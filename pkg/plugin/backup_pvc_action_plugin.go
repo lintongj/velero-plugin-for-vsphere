@@ -5,7 +5,6 @@ import (
 	"github.com/sirupsen/logrus"
 	backupdriverv1api "github.com/vmware-tanzu/velero-plugin-for-vsphere/pkg/apis/backupdriver/v1"
 	backupdriverClientSet "github.com/vmware-tanzu/velero-plugin-for-vsphere/pkg/generated/clientset/versioned"
-	"github.com/vmware-tanzu/velero-plugin-for-vsphere/pkg/utils"
 	velerov1api "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	"github.com/vmware-tanzu/velero/pkg/plugin/velero"
 	corev1 "k8s.io/api/core/v1"
@@ -25,7 +24,7 @@ type NewPVCBackupItemAction struct {
 
 // AppliesTo returns information indicating that the PVCBackupItemAction should be invoked to backup PVCs.
 func (p *NewPVCBackupItemAction) AppliesTo() (velero.ResourceSelector, error) {
-	p.Log.Debug("PVCBackupItemAction AppliesTo")
+	p.Log.Info("PVCBackupItemAction AppliesTo for vSphere")
 
 	return velero.ResourceSelector{
 		IncludedResources: []string{"persistentvolumeclaims"},
@@ -42,7 +41,8 @@ func (p *NewPVCBackupItemAction) Execute(item runtime.Unstructured, backup *vele
 	p.Log.Info("Starting PVCBackupItemAction for vSphere")
 
 	// Do nothing if volume snapshots have not been requested in this backup
-	if utils.IsSetToFalse(backup.Spec.SnapshotVolumes) {
+	//if utils.IsSetToFalse(backup.Spec.SnapshotVolumes) {
+	if backup.Spec.SnapshotVolumes != nil && *backup.Spec.SnapshotVolumes == false {
 		p.Log.Infof("Volume snapshotting not requested for backup %s/%s", backup.Namespace, backup.Name)
 		return item, nil, nil
 	}
