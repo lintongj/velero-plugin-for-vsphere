@@ -91,6 +91,37 @@ func GetVeleroVersion(f client.Factory) (string, error) {
 	return "", nil
 }
 
+func GetVeleroFeatureFlags(f client.Factory) (string, error) {
+	clientset, err := f.KubeClient()
+	if err != nil {
+		fmt.Println("Failed to get kubeclient.")
+		return "", err
+	}
+	deployment, err := clientset.AppsV1().Deployments(f.Namespace()).Get(utils.VeleroDeployment, metav1.GetOptions{})
+	if err != nil {
+		fmt.Printf("Failed to get deployment for velero namespace: %v.\n", f.Namespace())
+		return "", err
+	}
+
+	var featureFlagsArg string
+	for _, arg := range deployment.Spec.Template.Spec.Containers[0].Args {
+		if strings.Contains(arg, "--features") {
+			featureFlagsArg = arg
+			break
+		}
+	}
+	if featureFlagsArg == "" {
+		return "", nil
+	}
+
+	parts := strings.Split(featureFlagsArg, "=")
+	if len(parts) != 2 {
+		return "", errors.New("Unexpected command line argument for feature flag")
+	}
+
+	return parts[1], nil
+}
+
 // Go doesn't have max function for integers?  Oh really, that's just so convenient
 func max(x, y int) int {
 	if x > y {
