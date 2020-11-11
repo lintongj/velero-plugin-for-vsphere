@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/spf13/pflag"
 	"github.com/vmware-tanzu/velero-plugin-for-vsphere/pkg/constants"
+	"github.com/vmware-tanzu/velero-plugin-for-vsphere/pkg/utils"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"os"
 	"strconv"
@@ -54,8 +55,8 @@ func Exit(msg string, args ...interface{}) {
 func GetVersionFromImage(containers []v1.Container, imageName string) string {
 	var tag = ""
 	for _, container := range containers {
-		if strings.Contains(container.Image, imageName) {
-			tag = strings.Split(container.Image, ":")[1]
+		if strings.Contains(imageName, utils.GetComponentFromImage(container.Image, constants.ImageContainerComponent)) {
+			tag = utils.GetComponentFromImage(container.Image, constants.ImageVersionComponent)
 			break
 		}
 	}
@@ -71,6 +72,7 @@ func GetVersionFromImage(containers []v1.Container, imageName string) string {
 	}
 }
 
+
 func GetVeleroVersion(f client.Factory, ns string) (string, error) {
 	clientset, err := f.KubeClient()
 	if err != nil {
@@ -84,7 +86,7 @@ func GetVeleroVersion(f client.Factory, ns string) (string, error) {
 	}
 	for _, item := range deploymentList.Items {
 		if item.GetName() == "velero" {
-			version := GetVersionFromImage(item.Spec.Template.Spec.Containers, "velero/velero")
+			version := GetVersionFromImage(item.Spec.Template.Spec.Containers, "velero")
 			return version, nil
 		}
 	}
@@ -105,7 +107,7 @@ func GetVeleroFeatureFlags(f client.Factory, veleroNs string) ([]string, error) 
 	}
 	for _, item := range deploymentList.Items {
 		if item.GetName() == "velero" {
-			featureFlags, err = GetFeatureFlagsFromImage(item.Spec.Template.Spec.Containers, "velero/velero")
+			featureFlags, err = GetFeatureFlagsFromImage(item.Spec.Template.Spec.Containers, "velero")
 			if err != nil {
 				fmt.Println("ERROR: Failed to get feature flags for velero deployment.")
 				return featureFlags, err
@@ -116,10 +118,10 @@ func GetVeleroFeatureFlags(f client.Factory, veleroNs string) ([]string, error) 
 	return featureFlags, errors.Errorf("Unable to find velero deployment")
 }
 
-func GetFeatureFlagsFromImage(containers []v1.Container, imageName string) ([]string, error) {
+func GetFeatureFlagsFromImage(containers []v1.Container, containerName string) ([]string, error) {
 	var containerArgs = []string{}
 	for _, container := range containers {
-		if strings.Contains(container.Image, imageName) {
+		if containerName == utils.GetComponentFromImage(container.Image, constants.ImageContainerComponent) {
 			containerArgs = container.Args[1:]
 			break
 		}

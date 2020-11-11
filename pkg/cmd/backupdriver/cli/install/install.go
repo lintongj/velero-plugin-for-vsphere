@@ -228,7 +228,7 @@ func (o *InstallOptions) CheckPluginImageRepo(f client.Factory) error {
 	for _, container := range deployment.Spec.Template.Spec.InitContainers {
 		if strings.Contains(container.Image, constants.VeleroPluginForVsphere) {
 			image = container.Image
-			repo = utils.GetRepo(image)
+			repo = utils.GetRepoFromImage(image)
 			tag = strings.Split(image, ":")[1]
 			break
 		}

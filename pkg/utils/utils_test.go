@@ -252,7 +252,7 @@ func TestGetRepo(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			repo := GetRepo(test.image)
+			repo := GetRepoFromImage(test.image)
 			assert.Equal(t, test.expected, repo)
 		})
 	}
