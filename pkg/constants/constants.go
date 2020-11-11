@@ -285,3 +285,9 @@ const (
 	SnapshotParamSvcSnapshotName  = "SvcSnapshotName"
 	SnapshotParamBackupRepository = "BackupRepository"
 )
+
+const (
+	ImageRepositoryComponent = "Repository"
+	ImageContainerComponent = "Container"
+	ImageVersionComponent = "Version"
+)
