@@ -55,8 +55,8 @@ func Exit(msg string, args ...interface{}) {
 func GetVersionFromImage(containers []v1.Container, imageName string) string {
 	var tag = ""
 	for _, container := range containers {
-		if strings.Contains(imageName, utils.GetComponentFromImage(container.Image, constants.ImageContainerComponent)) {
-			tag = utils.GetComponentFromImage(container.Image, constants.ImageVersionComponent)
+		if strings.Contains(container.Image, imageName) {
+			tag = strings.Split(container.Image, ":")[1]
 			break
 		}
 	}
@@ -72,6 +72,26 @@ func GetVersionFromImage(containers []v1.Container, imageName string) string {
 	}
 }
 
+// Return version in the format: vX.Y.Z
+func GetVersionFromImageByContainerName(containers []v1.Container, containerName string) string {
+	var tag = ""
+	for _, container := range containers {
+		if containerName == utils.GetComponentFromImage(container.Image, constants.ImageContainerComponent) {
+			tag = utils.GetComponentFromImage(container.Image, constants.ImageVersionComponent)
+			break
+		}
+	}
+	if tag == "" {
+		fmt.Printf("Failed to get tag from image %s\n", containerName)
+		return ""
+	}
+	if strings.Contains(tag, "-") {
+		version := strings.Split(tag, "-")[0]
+		return version
+	} else {
+		return tag
+	}
+}
 
 func GetVeleroVersion(f client.Factory, ns string) (string, error) {
 	clientset, err := f.KubeClient()
@@ -86,7 +106,7 @@ func GetVeleroVersion(f client.Factory, ns string) (string, error) {
 	}
 	for _, item := range deploymentList.Items {
 		if item.GetName() == "velero" {
-			version := GetVersionFromImage(item.Spec.Template.Spec.Containers, "velero")
+			version := GetVersionFromImageByContainerName(item.Spec.Template.Spec.Containers, "velero")
 			return version, nil
 		}
 	}
