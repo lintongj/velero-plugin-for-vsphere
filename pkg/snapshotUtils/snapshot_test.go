@@ -11,17 +11,11 @@ import (
 	core_v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
-   "os"
 	"testing"
 	"time"
 )
 
 func TestWaitForPhases(t *testing.T) {
-	path := os.Getenv("KUBECONFIG")
-   if _, err := os.Stat(path); os.IsNotExist(err) {
-      t.Skipf("The KubeConfig file, %v, is not exist", path)
-   }
-
 	clientSet, err := createClientSet()
 
 	if err != nil {
@@ -91,11 +85,6 @@ func TestWaitForPhases(t *testing.T) {
 }
 
 func TestWaitForClonePhases(t *testing.T) {
-	path := os.Getenv("KUBECONFIG")
-   if _, err := os.Stat(path); os.IsNotExist(err) {
-      t.Skipf("The KubeConfig file, %v, is not exist", path)
-   }
-
 	clientSet, err := createClientSet()
 
 	if err != nil {

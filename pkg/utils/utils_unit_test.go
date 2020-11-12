@@ -366,6 +366,13 @@ func TestGetComponentFromImage(t *testing.T) {
 			expectedContainer: "velero-plugin-for-vsphere",
 			expectedVersion: "",
 		},
+		{
+			name: "ExpectedCaseOfRegistryEndpointWithPort",
+			image: "xyz-repo.vmware.com:9999/velero/velero-plugin-for-vsphere:1.1.0-rc2",
+			expectedRepo: "xyz-repo.vmware.com:9999/velero",
+			expectedContainer: "velero-plugin-for-vsphere",
+			expectedVersion: "1.1.0-rc2",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

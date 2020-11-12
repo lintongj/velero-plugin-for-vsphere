@@ -126,11 +126,6 @@ func NewClientConfigNotFoundError(errMsg string) ClientConfigNotFoundError {
  * For this test, set KUBECONFIG to point to a valid setup, with a BackupDriverNamespace created.
  */
 func Test_waitForPvSecret(t *testing.T) {
-	path := os.Getenv("KUBECONFIG")
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		t.Skipf("The KubeConfig file, %v, is not exist", path)
-	}
-
 	clientSet, err := createClientSet()
 
 	if err != nil {
