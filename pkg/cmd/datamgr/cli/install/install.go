@@ -19,19 +19,18 @@ package install
 import (
 	"context"
 	"fmt"
-	"github.com/vmware-tanzu/velero-plugin-for-vsphere/pkg/constants"
-	"github.com/vmware-tanzu/velero/pkg/features"
-	"strings"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/vmware-tanzu/velero-plugin-for-vsphere/pkg/cmd"
+	"github.com/vmware-tanzu/velero-plugin-for-vsphere/pkg/constants"
 	"github.com/vmware-tanzu/velero-plugin-for-vsphere/pkg/install"
 	"github.com/vmware-tanzu/velero-plugin-for-vsphere/pkg/utils"
 	"github.com/vmware-tanzu/velero/pkg/client"
 	"github.com/vmware-tanzu/velero/pkg/cmd/util/flag"
 	"github.com/vmware-tanzu/velero/pkg/cmd/util/output"
+	"github.com/vmware-tanzu/velero/pkg/features"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
@@ -250,31 +249,13 @@ func (o *InstallOptions) CheckPluginImageRepo(f client.Factory) error {
 		errMsg := fmt.Sprint("Failed to get clientset.")
 		return errors.New(errMsg)
 	}
-	deployment, err := clientset.AppsV1().Deployments(o.Namespace).Get(context.TODO(), constants.VeleroDeployment, metav1.GetOptions{})
+
+	o.Image, err = cmd.GetCompatibleRepoAndTagFromPluginImage(clientset, o.Namespace, constants.DataManagerForPlugin)
 	if err != nil {
-		errMsg := fmt.Sprintf("Failed to get velero deployment in namespace %s", o.Namespace)
-		return errors.New(errMsg)
+		return err
 	}
 
-	repo := ""
-	tag := ""
-	image := ""
-	for _, container := range deployment.Spec.Template.Spec.InitContainers {
-		if strings.Contains(container.Image, constants.VeleroPluginForVsphere) {
-			image = container.Image
-			repo = utils.GetRepoFromImage(container.Image)
-			tag = strings.Split(container.Image, ":")[1]
-			break
-		}
-	}
-
-	if repo != "" && tag != "" {
-		o.Image = repo + "/" + constants.DataManagerForPlugin + ":" + tag
-		return nil
-	} else {
-		errMsg := fmt.Sprintf("Failed to get repo and tag from velero plugin image %s.", image)
-		return errors.New(errMsg)
-	}
+	return nil
 }
 
 //Complete completes options for a command.

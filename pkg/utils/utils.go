@@ -750,13 +750,6 @@ func GetSupervisorParameters(config *rest.Config, ns string, logger logrus.Field
 	return params, nil
 }
 
-// Retrieve image repository from image name here. We expect the following format
-// for image name: <repo-level1>/<repo-level2>/.../<plugin-bin-name>:<tag>. plugin-bin-name
-// and tag should not include '/'.
-func GetRepoFromImage(image string) string {
-	return GetComponentFromImage(image, constants.ImageRepositoryComponent)
-}
-
 func GetComponentFromImage(image string, component string) string {
 	components := GetComponentsFromImage(image)
 	return components[component]

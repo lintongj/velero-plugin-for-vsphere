@@ -19,8 +19,6 @@ package install
 import (
 	"context"
 	"fmt"
-	"strings"
-
 	"github.com/vmware-tanzu/velero-plugin-for-vsphere/pkg/constants"
 
 	"github.com/pkg/errors"
@@ -216,31 +214,13 @@ func (o *InstallOptions) CheckPluginImageRepo(f client.Factory) error {
 		errMsg := fmt.Sprint("Failed to get clientset.")
 		return errors.New(errMsg)
 	}
-	deployment, err := clientset.AppsV1().Deployments(o.Namespace).Get(context.TODO(), constants.VeleroDeployment, metav1.GetOptions{})
+
+	o.Image, err = cmd.GetCompatibleRepoAndTagFromPluginImage(clientset, o.Namespace, constants.BackupDriverForPlugin)
 	if err != nil {
-		errMsg := fmt.Sprintf("Failed to get velero deployment in namespace %s", o.Namespace)
-		return errors.New(errMsg)
+		return err
 	}
 
-	var repo string
-	var tag string
-	var image string
-	for _, container := range deployment.Spec.Template.Spec.InitContainers {
-		if strings.Contains(container.Image, constants.VeleroPluginForVsphere) {
-			image = container.Image
-			repo = utils.GetRepoFromImage(image)
-			tag = strings.Split(image, ":")[1]
-			break
-		}
-	}
-
-	if repo != "" && tag != "" {
-		o.Image = repo + "/" + constants.BackupDriverForPlugin + ":" + tag
-		return nil
-	} else {
-		errMsg := fmt.Sprintf("Failed to get repo and tag from velero plugin image %s.", image)
-		return errors.New(errMsg)
-	}
+	return nil
 }
 
 //Complete completes options for a command.

@@ -23,6 +23,7 @@ import (
 	"github.com/vmware-tanzu/velero-plugin-for-vsphere/pkg/constants"
 	"github.com/vmware-tanzu/velero-plugin-for-vsphere/pkg/utils"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/kubernetes"
 	"os"
 	"strconv"
 	"strings"
@@ -319,4 +320,35 @@ func BuildConfig(master, kubeConfig string, f client.Factory) (*rest.Config, err
 		return nil, errors.Errorf("failed to create config: %v", err)
 	}
 	return config, nil
+}
+
+func GetCompatibleRepoAndTagFromPluginImage(kubeClient kubernetes.Interface, namespace string, targetContainer string) (string, error) {
+	deployment, err := kubeClient.AppsV1().Deployments(namespace).Get(context.TODO(), constants.VeleroDeployment, metav1.GetOptions{})
+	if err != nil {
+		return "", errors.Errorf("Failed to get velero deployment in namespace %s", namespace)
+	}
+
+	var repo, tag, image string
+	for _, container := range deployment.Spec.Template.Spec.InitContainers {
+		imageContainer := utils.GetComponentFromImage(container.Image, constants.ImageContainerComponent)
+		if imageContainer == constants.VeleroPluginForVsphere {
+			image = container.Image
+			repo = utils.GetComponentFromImage(image, constants.ImageRepositoryComponent)
+			tag = utils.GetComponentFromImage(image, constants.ImageVersionComponent)
+			break
+		}
+	}
+
+	if image == "" {
+		return "", errors.New("The plugin, velero-plugin-for-vsphere, was not added as an init container of Velero deployment")
+	}
+
+	resultImage := targetContainer
+	if repo != "" {
+		resultImage = repo + "/" + resultImage
+	}
+	if tag != "" {
+		resultImage = resultImage + ":" + tag
+	}
+	return resultImage, nil
 }
