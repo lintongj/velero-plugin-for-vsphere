@@ -19,20 +19,21 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/go-version"
+	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 	"github.com/vmware-tanzu/velero-plugin-for-vsphere/pkg/constants"
 	"github.com/vmware-tanzu/velero-plugin-for-vsphere/pkg/utils"
+	"github.com/vmware-tanzu/velero/pkg/client"
+	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"os"
 	"strconv"
 	"strings"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-	"github.com/pkg/errors"
-	"github.com/vmware-tanzu/velero/pkg/client"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // CheckError prints err to stderr and exits with code 1 if err is not nil. Otherwise, it is a
@@ -75,7 +76,7 @@ func GetVersionFromImage(containers []v1.Container, imageName string) string {
 
 // Return version in the format: vX.Y.Z
 func GetVersionFromImageByContainerName(containers []v1.Container, containerName string) string {
-	var tag = ""
+	var tag string
 	for _, container := range containers {
 		if containerName == utils.GetComponentFromImage(container.Image, constants.ImageContainerComponent) {
 			tag = utils.GetComponentFromImage(container.Image, constants.ImageVersionComponent)
@@ -84,14 +85,9 @@ func GetVersionFromImageByContainerName(containers []v1.Container, containerName
 	}
 	if tag == "" {
 		fmt.Printf("Failed to get tag from image %s\n", containerName)
-		return ""
 	}
-	if strings.Contains(tag, "-") {
-		version := strings.Split(tag, "-")[0]
-		return version
-	} else {
-		return tag
-	}
+
+	return tag
 }
 
 func GetVeleroVersion(f client.Factory, ns string) (string, error) {
@@ -100,43 +96,32 @@ func GetVeleroVersion(f client.Factory, ns string) (string, error) {
 		fmt.Println("Failed to get kubeclient.")
 		return "", err
 	}
-	deploymentList, err := clientset.AppsV1().Deployments(ns).List(context.TODO(), metav1.ListOptions{})
+
+	veleroDeployment, err := clientset.AppsV1().Deployments(ns).Get(context.TODO(), constants.VeleroDeployment, metav1.GetOptions{})
 	if err != nil {
 		fmt.Println("Failed to get deployment for velero namespace.")
 		return "", err
 	}
-	for _, item := range deploymentList.Items {
-		if item.GetName() == "velero" {
-			version := GetVersionFromImageByContainerName(item.Spec.Template.Spec.Containers, "velero")
-			return version, nil
-		}
-	}
-	return "", nil
+
+	return GetVersionFromImageByContainerName(veleroDeployment.Spec.Template.Spec.Containers, "velero"), nil
 }
 
-func GetVeleroFeatureFlags(f client.Factory, veleroNs string) ([]string, error) {
+func GetVeleroFeatureFlags(kubeClient kubernetes.Interface, ns string) ([]string, error) {
 	var featureFlags = []string{}
-	clientset, err := f.KubeClient()
-	if err != nil {
-		fmt.Println("Failed to get kubeclient.")
-		return featureFlags, err
-	}
-	deploymentList, err := clientset.AppsV1().Deployments(veleroNs).List(context.TODO(), metav1.ListOptions{})
+
+	veleroDeployment, err := kubeClient.AppsV1().Deployments(ns).Get(context.TODO(), constants.VeleroDeployment, metav1.GetOptions{})
 	if err != nil {
 		fmt.Println("Failed to get deployment for velero namespace.")
 		return featureFlags, err
 	}
-	for _, item := range deploymentList.Items {
-		if item.GetName() == "velero" {
-			featureFlags, err = GetFeatureFlagsFromImage(item.Spec.Template.Spec.Containers, "velero")
-			if err != nil {
-				fmt.Println("ERROR: Failed to get feature flags for velero deployment.")
-				return featureFlags, err
-			}
-			return featureFlags, nil
-		}
+
+	featureFlags, err = GetFeatureFlagsFromImage(veleroDeployment.Spec.Template.Spec.Containers, "velero")
+	if err != nil {
+		fmt.Println("Failed to get feature flags for velero deployment.")
+		return featureFlags, err
 	}
-	return featureFlags, errors.Errorf("Unable to find velero deployment")
+
+	return featureFlags, nil
 }
 
 func GetFeatureFlagsFromImage(containers []v1.Container, containerName string) ([]string, error) {
@@ -213,47 +198,15 @@ func CreateFeatureStateConfigMap(features []string, f client.Factory, veleroNs s
 	return nil
 }
 
-// Go doesn't have max function for integers?  Oh really, that's just so convenient
-func max(x, y int) int {
-	if x > y {
-		return x
-	}
-	return y
-}
-
+// If currentVersion < minVersion, return -1
 // If currentVersion == minVersion, return 0
 // If currentVersion > minVersion, return 1
-// If currentVersion < minVersion, return -1
-// Assume input string format is vX.Y.Z
+// Assume input versions are both valid
 func CompareVersion(currentVersion string, minVersion string) int {
-	if currentVersion == "" {
-		currentVersion = "v0.0.0"
-	}
-	if minVersion == "" {
-		minVersion = "v0.0.0"
-	}
-	curVerArr := strings.Split(currentVersion[1:], ".")
-	minVerArr := strings.Split(minVersion[1:], ".")
+	current, _ := version.NewVersion(currentVersion)
+	minimum, _ := version.NewVersion(minVersion)
 
-	for index := 0; index < max(len(curVerArr), len(minVerArr)); index++ {
-		var curVerDigit, minVerDigit int
-		if index < len(curVerArr) {
-			curVerDigit, _ = strconv.Atoi(curVerArr[index])
-		} else {
-			curVerDigit = 0 // Substitute 0 if a position is missing
-		}
-		if index < len(minVerArr) {
-			minVerDigit, _ = strconv.Atoi(minVerArr[index])
-		} else {
-			minVerDigit = 0
-		}
-		if curVerDigit < minVerDigit {
-			return -1
-		} else if curVerDigit > minVerDigit {
-			return 1
-		}
-	}
-	return 0
+	return current.Compare(minimum)
 }
 
 func CheckCSIVersion(containers []v1.Container) (bool, bool, error) {
@@ -282,12 +235,8 @@ func CheckCSIVersion(containers []v1.Container) (bool, bool, error) {
 	return true, isVersionOK, nil
 }
 
-func CheckCSIInstalled(f client.Factory) (bool, bool, error) {
-	clientset, err := f.KubeClient()
-	if err != nil {
-		return false, false, err
-	}
-	statefulsetList, err := clientset.AppsV1().StatefulSets("kube-system").List(context.TODO(), metav1.ListOptions{})
+func CheckCSIInstalled(kubeClient kubernetes.Interface) (bool, bool, error) {
+	statefulsetList, err := kubeClient.AppsV1().StatefulSets("kube-system").List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return false, false, err
 	}
@@ -296,7 +245,7 @@ func CheckCSIInstalled(f client.Factory) (bool, bool, error) {
 			return CheckCSIVersion(item.Spec.Template.Spec.Containers)
 		}
 	}
-	deploymentList, err := clientset.AppsV1().Deployments("kube-system").List(context.TODO(), metav1.ListOptions{})
+	deploymentList, err := kubeClient.AppsV1().Deployments("kube-system").List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return false, false, err
 	}
@@ -351,4 +300,73 @@ func GetCompatibleRepoAndTagFromPluginImage(kubeClient kubernetes.Interface, nam
 		resultImage = resultImage + ":" + tag
 	}
 	return resultImage, nil
+}
+
+func CheckVSphereCSIDriverVersion(f client.Factory) error {
+	clientSet, err := f.KubeClient()
+	if err != nil {
+		errMsg := fmt.Sprint("Failed to get clientSet")
+		return errors.New(errMsg)
+	}
+
+	isCSIInstalled, isVersionOk, err := CheckCSIInstalled(clientSet)
+	if err != nil {
+		fmt.Println("CSI driver check failed")
+		isCSIInstalled = false
+		isVersionOk = false
+	}
+
+	if !isCSIInstalled {
+		fmt.Println("Velero Plug-in for vSphere requires vSphere CSI/CNS and vSphere 6.7U3 to function. Please install the vSphere CSI/CNS driver")
+	}
+
+	if !isVersionOk {
+		fmt.Printf("vSphere CSI driver version is prior to %s. Velero Plug-in for vSphere requires CSI driver version to be %s or above\n", constants.CsiMinVersion, constants.CsiMinVersion)
+	}
+
+	return err
+}
+
+func CheckVeleroVersion(factory client.Factory, ns string) error {
+	if err := func(factory client.Factory, ns string) error {
+		veleroVersion, err := GetVeleroVersion(factory, ns)
+		if err != nil || veleroVersion == "" {
+			return errors.New("Failed to get velero version.")
+		} else {
+			if CompareVersion(veleroVersion, constants.VeleroMinVersion) == -1 {
+				return errors.Errorf("WARNING: Velero version %s is prior to %s. Velero Plug-in for vSphere requires velero version to be %s or above.\n", veleroVersion, constants.VeleroMinVersion, constants.VeleroMinVersion)
+			}
+		}
+		return nil
+	}(factory, ns); err != nil {
+		fmt.Printf("%v\n", err)
+	}
+
+	return nil
+}
+
+func CheckPluginImageRepo(f client.Factory, ns string, defaultImage string, serverType string) (string, error) {
+	resultImage, err := func(f client.Factory) (string, error) {
+		clientSet, err := f.KubeClient()
+		if err != nil {
+			errMsg := fmt.Sprint("Failed to get clientset")
+			return "", errors.New(errMsg)
+		}
+
+		resultImage, err := GetCompatibleRepoAndTagFromPluginImage(clientSet, ns, serverType)
+		if err != nil {
+			return "", err
+		}
+
+		return resultImage, nil
+	}(f)
+
+	if err != nil {
+		resultImage = defaultImage
+		fmt.Printf("Failed to check plugin image repo, error msg: %s. Using default image %s\n", err.Error(), resultImage)
+	} else {
+		fmt.Printf("Using image %s\n", resultImage)
+	}
+
+	return resultImage, err
 }

@@ -161,46 +161,6 @@ func TestRerieveVcConfigSecret(t *testing.T) {
 	}
 }
 
-func TestGetRepo(t *testing.T) {
-	tests := []struct {
-		name     string
-		image    string
-		expected string
-	}{
-		{
-			name:     "Top level registry",
-			image:    "harbor.mylab.local/velero-plugin-for-vsphere:1.0.1",
-			expected: "harbor.mylab.local",
-		},
-		{
-			name:     "Multiple level registry",
-			image:    "harbor.mylab.local/library/velero-plugin-for-vsphere:1.0.1",
-			expected: "harbor.mylab.local/library",
-		},
-		{
-			name:     "No / should return empty string",
-			image:    "velero-plugin-for-vsphere:1.0.1",
-			expected: "",
-		},
-		{
-			name:     "/ appears in beginning should return empty string",
-			image:    "/velero-plugin-for-vsphere:1.0.1",
-			expected: "",
-		},
-		{
-			name:     "Empty input should return empty string",
-			image:    "",
-			expected: "",
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			repo := GetRepoFromImage(test.image)
-			assert.Equal(t, test.expected, repo)
-		})
-	}
-}
-
 func TestDeleteSvcSnapshot(t *testing.T) {
 	tests := []struct {
 		name                     string
@@ -209,7 +169,7 @@ func TestDeleteSvcSnapshot(t *testing.T) {
 		config                   *rest.Config
 		toDeleteSvcSnapshotFirst bool
 		expectedErr              bool
-	} {
+	}{
 		{
 			name: "If svcSnapshot has already been deleted, should not return error",
 			gcSnapshot: &backupdriverapi.Snapshot{
@@ -235,9 +195,9 @@ func TestDeleteSvcSnapshot(t *testing.T) {
 					Name:      "svc-snapshot-1",
 				},
 			},
-			config: &rest.Config{},
+			config:                   &rest.Config{},
 			toDeleteSvcSnapshotFirst: true,
-			expectedErr: false,
+			expectedErr:              false,
 		},
 		{
 			name: "Delete a corresponding svc snapshot from gc snapshot",
@@ -264,9 +224,9 @@ func TestDeleteSvcSnapshot(t *testing.T) {
 					Name:      "svc-snapshot-2",
 				},
 			},
-			config: &rest.Config{},
+			config:                   &rest.Config{},
 			toDeleteSvcSnapshotFirst: false,
-			expectedErr: false,
+			expectedErr:              false,
 		},
 		{
 			name: "Guest cluster with no svccnapshot name should return error",
@@ -290,17 +250,17 @@ func TestDeleteSvcSnapshot(t *testing.T) {
 					Name:      "svc-snapshot-3",
 				},
 			},
-			config: &rest.Config{},
+			config:                   &rest.Config{},
 			toDeleteSvcSnapshotFirst: false,
-			expectedErr: true,
+			expectedErr:              true,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			var (
-				client          = fake.NewSimpleClientset(test.svcSnapshot)
-				sharedInformers = informers.NewSharedInformerFactory(client, 0)
-				logger          = veleroplugintest.NewLogger()
+				client             = fake.NewSimpleClientset(test.svcSnapshot)
+				sharedInformers    = informers.NewSharedInformerFactory(client, 0)
+				logger             = veleroplugintest.NewLogger()
 				backupdriverClient = client.BackupdriverV1alpha1()
 			)
 			require.NoError(t, sharedInformers.Backupdriver().V1alpha1().Snapshots().Informer().GetStore().Add(test.gcSnapshot))
@@ -327,51 +287,51 @@ func TestDeleteSvcSnapshot(t *testing.T) {
 
 func TestGetComponentFromImage(t *testing.T) {
 	tests := []struct {
-		name string
-		image string
+		name                                             string
+		image                                            string
 		expectedRepo, expectedContainer, expectedVersion string
 	}{
 		{
-			name: "ExpectedDummyCase",
-			image: "a/b/c/d:x",
-			expectedRepo: "a/b/c",
+			name:              "ExpectedDummyCase",
+			image:             "a/b/c/d:x",
+			expectedRepo:      "a/b/c",
 			expectedContainer: "d",
-			expectedVersion: "x",
+			expectedVersion:   "x",
 		},
 		{
-			name: "ExpectedDockerhubCase",
-			image: "vsphereveleroplugin/velero-plugin-for-vsphere:1.1.0-rc2",
-			expectedRepo: "vsphereveleroplugin",
+			name:              "ExpectedDockerhubCase",
+			image:             "vsphereveleroplugin/velero-plugin-for-vsphere:1.1.0-rc2",
+			expectedRepo:      "vsphereveleroplugin",
 			expectedContainer: "velero-plugin-for-vsphere",
-			expectedVersion: "1.1.0-rc2",
+			expectedVersion:   "1.1.0-rc2",
 		},
 		{
-			name: "ExpectedCustomizedCase",
-			image: "xyz-repo.vmware.com/velero/velero-plugin-for-vsphere:1.1.0-rc2",
-			expectedRepo: "xyz-repo.vmware.com/velero",
+			name:              "ExpectedCustomizedCase",
+			image:             "xyz-repo.vmware.com/velero/velero-plugin-for-vsphere:1.1.0-rc2",
+			expectedRepo:      "xyz-repo.vmware.com/velero",
 			expectedContainer: "velero-plugin-for-vsphere",
-			expectedVersion: "1.1.0-rc2",
+			expectedVersion:   "1.1.0-rc2",
 		},
 		{
-			name: "ExpectedLocalCase",
-			image: "velero-plugin-for-vsphere:1.1.0-rc2",
-			expectedRepo: "",
+			name:              "ExpectedLocalCase",
+			image:             "velero-plugin-for-vsphere:1.1.0-rc2",
+			expectedRepo:      "",
 			expectedContainer: "velero-plugin-for-vsphere",
-			expectedVersion: "1.1.0-rc2",
+			expectedVersion:   "1.1.0-rc2",
 		},
 		{
-			name: "ExpectedNonTaggedImageCase",
-			image: "xyz-repo.vmware.com/velero/velero-plugin-for-vsphere",
-			expectedRepo: "xyz-repo.vmware.com/velero",
+			name:              "ExpectedNonTaggedImageCase",
+			image:             "xyz-repo.vmware.com/velero/velero-plugin-for-vsphere",
+			expectedRepo:      "xyz-repo.vmware.com/velero",
 			expectedContainer: "velero-plugin-for-vsphere",
-			expectedVersion: "",
+			expectedVersion:   "",
 		},
 		{
-			name: "ExpectedCaseOfRegistryEndpointWithPort",
-			image: "xyz-repo.vmware.com:9999/velero/velero-plugin-for-vsphere:1.1.0-rc2",
-			expectedRepo: "xyz-repo.vmware.com:9999/velero",
+			name:              "ExpectedCaseOfRegistryEndpointWithPort",
+			image:             "xyz-repo.vmware.com:9999/velero/velero-plugin-for-vsphere:1.1.0-rc2",
+			expectedRepo:      "xyz-repo.vmware.com:9999/velero",
 			expectedContainer: "velero-plugin-for-vsphere",
-			expectedVersion: "1.1.0-rc2",
+			expectedVersion:   "1.1.0-rc2",
 		},
 	}
 	for _, test := range tests {
