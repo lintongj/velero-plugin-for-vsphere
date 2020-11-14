@@ -139,6 +139,11 @@ func NewCommand(f client.Factory) *cobra.Command {
 }
 
 func (o *InstallOptions) Run(c *cobra.Command, f client.Factory) error {
+	kubeClient, err := f.KubeClient()
+	if err != nil {
+		return errors.Wrap(err, "Failed to get kubeClient")
+	}
+
 	// Start with a few of prerequisite checks before installing data-manager
 	fmt.Println("The prerequisite checks for data-manager started")
 
@@ -146,7 +151,7 @@ func (o *InstallOptions) Run(c *cobra.Command, f client.Factory) error {
 	o.CheckClusterFlavorForDataManager()
 
 	// Check feature flags for data-manager
-	_ = o.CheckFeatureFlagsForDataManager(f)
+	_ = o.CheckFeatureFlagsForDataManager(kubeClient)
 
 	// Skip installing data manager if the flag is set
 	if o.SkipInstall {
@@ -155,13 +160,13 @@ func (o *InstallOptions) Run(c *cobra.Command, f client.Factory) error {
 	}
 
 	// Check vSphere CSI driver version
-	_ = cmd.CheckVSphereCSIDriverVersion(f)
+	_ = cmd.CheckVSphereCSIDriverVersion(kubeClient)
 
 	// Check velero version
-	_ = cmd.CheckVeleroVersion(f, o.Namespace)
+	_ = cmd.CheckVeleroVersion(kubeClient, o.Namespace)
 
 	// Check velero vsphere plugin image repo
-	o.Image, _ = cmd.CheckPluginImageRepo(f, o.Namespace, o.Image, constants.DataManagerForPlugin)
+	o.Image, _ = cmd.CheckPluginImageRepo(kubeClient, o.Namespace, o.Image, constants.DataManagerForPlugin)
 
 	fmt.Println("The prerequisite checks for data-manager completed")
 
@@ -187,9 +192,9 @@ func (o *InstallOptions) Run(c *cobra.Command, f client.Factory) error {
 	if err != nil {
 		return err
 	}
-	factory := client.NewDynamicFactory(dynamicClient)
+	dynamicFactory := client.NewDynamicFactory(dynamicClient)
 
-	nNodes, err := o.getNumberOfNodes(f)
+	nNodes, err := o.getNumberOfNodes(kubeClient)
 	if err != nil {
 		return errors.Wrap(err, "Error while getting number of nodes in kubernetes cluster")
 	}
@@ -197,14 +202,14 @@ func (o *InstallOptions) Run(c *cobra.Command, f client.Factory) error {
 	errorMsg := fmt.Sprintf("\n\nError installing data manager. Use `kubectl logs daemonset/%s -n %s` to check the logs",
 		constants.DataManagerForPlugin, o.Namespace)
 
-	err = install.Install(factory, resources, os.Stdout)
+	err = install.Install(dynamicFactory, resources, os.Stdout)
 	if err != nil {
 		return errors.Wrap(err, errorMsg)
 	}
 
 	fmt.Println("Waiting for data manager daemonset to be ready.")
 
-	if _, err = install.DaemonSetIsReady(factory, o.Namespace, nNodes); err != nil {
+	if _, err = install.DaemonSetIsReady(dynamicFactory, o.Namespace, nNodes); err != nil {
 		return errors.Wrap(err, errorMsg)
 	}
 
@@ -257,13 +262,8 @@ func (o *InstallOptions) Complete(args []string, f client.Factory) error {
 	return nil
 }
 
-func (o *InstallOptions) getNumberOfNodes(f client.Factory) (int, error) {
-	clientset, err := f.KubeClient()
-	if err != nil {
-		return 0, err
-	}
-
-	nodeList, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+func (o *InstallOptions) getNumberOfNodes(kubeClient kubernetes.Interface) (int, error) {
+	nodeList, err := kubeClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return 0, err
 	}
@@ -281,14 +281,8 @@ func (o *InstallOptions) CheckClusterFlavorForDataManager() {
 	}
 }
 
-func (o *InstallOptions) CheckFeatureFlagsForDataManager(f client.Factory) interface{} {
-	clientSet, err := f.KubeClient()
-	if err != nil {
-		errMsg := fmt.Sprint("Failed to get clientset.")
-		return errors.New(errMsg)
-	}
-
-	featureFlags, err := cmd.GetVeleroFeatureFlags(clientSet, o.Namespace)
+func (o *InstallOptions) CheckFeatureFlagsForDataManager(kubeClient kubernetes.Interface) error {
+	featureFlags, err := cmd.GetVeleroFeatureFlags(kubeClient, o.Namespace)
 	if err != nil {
 		fmt.Printf("Failed to decipher velero feature flags: %v, assuming none.\n", err)
 	}

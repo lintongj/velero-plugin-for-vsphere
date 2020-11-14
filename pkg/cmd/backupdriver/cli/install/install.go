@@ -113,17 +113,22 @@ func NewCommand(f client.Factory) *cobra.Command {
 }
 
 func (o *InstallOptions) Run(c *cobra.Command, f client.Factory) error {
+	kubeClient, err := f.KubeClient()
+	if err != nil {
+		return errors.Wrap(err, "Failed to get kubeClient")
+	}
+
 	// Start with a few of prerequisite checks before installing backup-driver
 	fmt.Println("The prerequisite checks for backup-driver started")
 
 	// Check vSphere CSI driver version
-	_ = cmd.CheckVSphereCSIDriverVersion(f)
+	_ = cmd.CheckVSphereCSIDriverVersion(kubeClient)
 
 	// Check velero version
-	_ = cmd.CheckVeleroVersion(f, o.Namespace)
+	_ = cmd.CheckVeleroVersion(kubeClient, o.Namespace)
 
 	// Check velero-plugin-for-vsphere image repo and parse the corresponding image for backup-driver
-	o.Image, _ = cmd.CheckPluginImageRepo(f, o.Namespace, o.Image, constants.BackupDriverForPlugin)
+	o.Image, _ = cmd.CheckPluginImageRepo(kubeClient, o.Namespace, o.Image, constants.BackupDriverForPlugin)
 
 	// Check cluster flavor for backup-driver
 	if err := o.CheckClusterFlavorForBackupDriver(); err != nil {
@@ -131,7 +136,7 @@ func (o *InstallOptions) Run(c *cobra.Command, f client.Factory) error {
 	}
 
 	// Check feature flags for backup-driver
-	if err := o.CheckFeatureFlagsForBackupDriver(f); err != nil {
+	if err := o.CheckFeatureFlagsForBackupDriver(kubeClient); err != nil {
 		return err
 	}
 
@@ -156,19 +161,19 @@ func (o *InstallOptions) Run(c *cobra.Command, f client.Factory) error {
 	if err != nil {
 		return err
 	}
-	factory := client.NewDynamicFactory(dynamicClient)
+	dynamicFactory := client.NewDynamicFactory(dynamicClient)
 
 	errorMsg := fmt.Sprintf("\n\nError installing backup-driver. Use `kubectl logs deploy/%s -n %s` to check the logs",
 		constants.BackupDriverForPlugin, o.Namespace)
 
-	err = install.Install(factory, resources, os.Stdout)
+	err = install.Install(dynamicFactory, resources, os.Stdout)
 	if err != nil {
 		return errors.Wrap(err, errorMsg)
 	}
 
 	fmt.Printf("Waiting for %s deployment to be ready.\n", constants.BackupDriverForPlugin)
 
-	if _, err = install.DeploymentIsReady(factory, o.Namespace); err != nil {
+	if _, err = install.DeploymentIsReady(dynamicFactory, o.Namespace); err != nil {
 		return errors.Wrap(err, errorMsg)
 	}
 
@@ -237,20 +242,14 @@ func (o *InstallOptions) CheckClusterFlavorForBackupDriver() error {
 	return nil
 }
 
-func (o *InstallOptions) CheckFeatureFlagsForBackupDriver(f client.Factory) error {
-	clientSet, err := f.KubeClient()
-	if err != nil {
-		errMsg := fmt.Sprint("Failed to get clientset.")
-		return errors.New(errMsg)
-	}
-
-	featureFlags, err := cmd.GetVeleroFeatureFlags(clientSet, o.Namespace)
+func (o *InstallOptions) CheckFeatureFlagsForBackupDriver(kubeClient kubernetes.Interface) error {
+	featureFlags, err := cmd.GetVeleroFeatureFlags(kubeClient, o.Namespace)
 	if err != nil {
 		fmt.Printf("Failed to decipher velero feature flags: %v, assuming none.\n", err)
 	}
 
 	// Create Config Map with the feature states.
-	if err := cmd.CreateFeatureStateConfigMap(featureFlags, f, o.Namespace); err != nil {
+	if err := cmd.CreateFeatureStateConfigMap(kubeClient, featureFlags, o.Namespace); err != nil {
 		fmt.Printf("Failed to create feature state config map from velero feature flags: %v.\n", err)
 		return err
 	}
