@@ -28,6 +28,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -333,4 +334,23 @@ func CheckPluginImageRepo(kubeClient kubernetes.Interface, ns string, defaultIma
 	}
 
 	return resultImage, err
+}
+
+func GetK8sServerVersion(f client.Factory) (string, error) {
+	restcfg, err := f.ClientConfig()
+	if err != nil {
+		return "", err
+	}
+
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restcfg)
+	if err != nil {
+		return "", err
+	}
+
+	versionInfo, err := discoveryClient.ServerVersion()
+	if err != nil {
+		return "", err
+	}
+
+	return versionInfo.String(), nil
 }
