@@ -31,9 +31,10 @@ of VDDK Programming Guide. **Note: please apply privileges at the vCenter Server
 3. [Install Velero Plugin for vSphere](#install-velero-plugin-for-vsphere)
 
 ### Install Object Storage Plugin
-Volume backups are stored in an object store bucket, e.g., S3. Currently these are stored in the same bucket configured for
-the object storage plugin of Velero. Before installing the vSphere plugin, please install and configure the object storage plugin.
-Here is an example, [velero-plugin-for-aws](https://github.com/vmware-tanzu/velero-plugin-for-aws/blob/master/README.md).
+Volume backups are stored in an object store bucket, e.g., AWS S3. They are stored in the same bucket configured for
+the object storage plugin of Velero. Before installing the vSphere plugin, a Velero object storage plugin is required.
+Currently, only AWS plugin is supported and compatible with vSphere plugin.
+Please refer to [velero-plugin-for-aws](https://github.com/vmware-tanzu/velero-plugin-for-aws/blob/master/README.md) for more detail.
 
 
 ### Install Velero Plugin for vSphere
