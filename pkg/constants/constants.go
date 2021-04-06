@@ -277,16 +277,17 @@ var ResourcesToBlock = map[string]bool{
 var ResourcesToBlockOnRestore = map[string]bool{
 	// Kubernetes with vSphere Supervisor Cluster resources
 
-	// The image resource is backed up everytime when a container
-	// is backed up on Supervisor Cluster.
-	// We should skip it at restore time.
-	"images.imagecontroller.vmware.com": true,
-
 	// We need to remove some metadata from the Pod resource on
 	// Supervisor Cluster, i.e., annotation "vmware-system-vm-uuid"
 	// before the restore as the existing VM UUID is associated with
 	// the old VM that does not exist any more
 	"pods": true,
+
+	// The following resources are backed up everytime when a container
+	// is backed up on Supervisor Cluster.
+	// We should skip it at restore time.
+	"images.imagecontroller.vmware.com": true,
+	"nsxlbmonitors.vmware.com": true,
 }
 
 var ResourcesToHandle = map[string]bool{
