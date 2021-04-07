@@ -113,10 +113,10 @@ const (
 )
 
 const (
-	VCSecretNs             = "kube-system"
-	VCSecretNsSupervisor   = "vmware-system-csi"
-	VCSecret               = "vsphere-config-secret"
-	VCSecretTKG            = "csi-vsphere-config"
+	VCSecretNs           = "kube-system"
+	VCSecretNsSupervisor = "vmware-system-csi"
+	VCSecret             = "vsphere-config-secret"
+	VCSecretTKG          = "csi-vsphere-config"
 )
 
 const (
@@ -285,10 +285,15 @@ var ResourcesToBlockOnRestore = map[string]bool{
 	// We should skip it at restore time.
 	"images.imagecontroller.vmware.com": true,
 
-	// "nsxlbmonitors.vmware.com" is the real full name for this resource,
+	// "nsxlbmonitors.vmware.com" is the real name for this resource,
 	// however, our existing name parsing mechanism for resource matches
-	// with the following one.
-	"nsxloadbalancermonitors.vmware.com": true,
+	// with the parsed name. Adding both of them to the list.
+	// The real name will be used to make sure the resource is
+	// picked up in the AppliesTo func of item action plugin, while
+	// the parsed name will be used to skip restoring the resource
+	// in the Execute func of item action plugin.
+	"nsxlbmonitors.vmware.com":           true, // real name
+	"nsxloadbalancermonitors.vmware.com": true, // parsed name
 }
 
 var ResourcesToHandle = map[string]bool{
