@@ -45,10 +45,11 @@ func (p *NewPVCRestoreItemAction) AppliesTo() (velero.ResourceSelector, error) {
 
 func (p *NewPVCRestoreItemAction) Execute(input *velero.RestoreItemActionExecuteInput) (*velero.RestoreItemActionExecuteOutput, error) {
 	blocked, crdName, err := utils.IsObjectBlocked(input.ItemFromBackup) // Use ItemFromBackup here so that selflink is available
-
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed during IsObjectBlocked check")
 	}
+
+	p.Log.Infof("Restoring resource %v: blocked = %v. ItemFromBackup = %v", crdName, blocked)
 
 	if blocked == false {
 		// "pods", "images" and "nsxlbmonitors" are additional resources
