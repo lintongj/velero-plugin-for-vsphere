@@ -226,7 +226,6 @@ var ResourcesToBlock = map[string]bool{
 	"networkinterfaces.netoperator.vmware.com":                true,
 	"networks.netoperator.vmware.com":                         true,
 	"nsxerrors.nsx.vmware.com":                                true,
-	"nsxloadbalancermonitors.vmware.com":                      true,
 	"nsxlocks.nsx.vmware.com":                                 true,
 	"nsxnetworkinterfaces.nsx.vmware.com":                     true,
 	"orders.acme.cert-manager.io":                             true,
