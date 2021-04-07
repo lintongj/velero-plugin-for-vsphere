@@ -284,7 +284,11 @@ var ResourcesToBlockOnRestore = map[string]bool{
 	// is backed up on Supervisor Cluster.
 	// We should skip it at restore time.
 	"images.imagecontroller.vmware.com": true,
-	"nsxlbmonitors.vmware.com": true,
+
+	// "nsxlbmonitors.vmware.com" is the real full name for this resource,
+	// however, our existing name parsing mechanism for resource matches
+	// with the following one.
+	"nsxloadbalancermonitors.vmware.com": true,
 }
 
 var ResourcesToHandle = map[string]bool{

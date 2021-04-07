@@ -49,8 +49,6 @@ func (p *NewPVCRestoreItemAction) Execute(input *velero.RestoreItemActionExecute
 		return nil, errors.Wrap(err, "Failed during IsObjectBlocked check")
 	}
 
-	p.Log.Infof("Restoring resource %v: blocked = %v. ItemFromBackup = %v", crdName, blocked)
-
 	if blocked == false {
 		// "pods", "images" and "nsxlbmonitors" are additional resources
 		// blocked on restore only for now
@@ -59,11 +57,13 @@ func (p *NewPVCRestoreItemAction) Execute(input *velero.RestoreItemActionExecute
 	item := input.Item // Use Item for everything else so that previous actions had a chance to modify the object
 	// (e.g. Velero removes extraneous metadata earlier in the restore process)
 
+	p.Log.Infof("Restoring resource %v: blocked = %v", crdName, blocked)
+
 	if blocked {
 		if crdName == "pods" {
 			return p.createPod(item)
 		} else if utils.IsResourceBlockedOnRestore(crdName) {
-			// Skip the restore of image resources on Supervisor Cluster
+			// Skip the restore of image and nsxlbmonitor resources on Supervisor Cluster
 			p.Log.Infof("Skipping resource %s on restore", crdName)
 			return &velero.RestoreItemActionExecuteOutput{
 				SkipRestore: true,
