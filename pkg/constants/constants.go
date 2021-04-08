@@ -201,6 +201,7 @@ var ResourcesToBlock = map[string]bool{
 	"haproxyloadbalancerconfigs.netoperator.vmware.com":       true,
 	"httproutes.networking.x-k8s.io":                          true,
 	"imagedisks.imagecontroller.vmware.com":                   true,
+	//"images.imagecontroller.vmware.com":                     true, // DO NOT ADD IT BACK
 	"installoptions.appplatform.wcp.vmware.com":               true,
 	"installrequirements.appplatform.wcp.vmware.com":          true,
 	"ipamblocks.crd.projectcalico.org":                        true,
@@ -226,6 +227,8 @@ var ResourcesToBlock = map[string]bool{
 	"networkinterfaces.netoperator.vmware.com":                true,
 	"networks.netoperator.vmware.com":                         true,
 	"nsxerrors.nsx.vmware.com":                                true,
+	//"nsxlbmonitors.vmware.com":                              true, // DO NOT ADD IT BACK
+	//"nsxloadbalancermonitors.vmware.com":                    true, // DO NOT ADD IT BACK
 	"nsxlocks.nsx.vmware.com":                                 true,
 	"nsxnetworkinterfaces.nsx.vmware.com":                     true,
 	"orders.acme.cert-manager.io":                             true,
